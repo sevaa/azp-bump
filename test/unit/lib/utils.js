@@ -142,6 +142,12 @@ suite('utils Suite:', () => {
             utils.validateJsonIndent(opts);
             assert.deepEqual(opts.indent, helpers.tabCharacter);
         });
+
+        test('Should support preserve as a special case for indent', () => {
+            opts.indent = 'preserve';
+            utils.validateJsonIndent(opts);
+            assert.deepEqual(opts.indent, 'preserve');
+        });
     });
 
     suite('validateVersionPropertyType Suite:', () => {
@@ -381,6 +387,76 @@ suite('utils Suite:', () => {
             assert.deepEqual(taskJson.version.Major, helpers.majorVersionStr);
             assert.deepEqual(taskJson.version.Minor, helpers.minorVersionStr);
             assert.deepEqual(taskJson.version.Patch, bumpedPatch.toString());
+        });
+    });
+
+    suite('setVersionInPlace Suite:', () => {
+        let semverMajorStub;
+        let semverMinorStub;
+        let semverPatchStub;
+        let taskJson;
+        let contents;
+        const defaultOpts = helpers.defaultOptions;
+        const errorMessage = 'Ouch!';
+        const bumpedPatch = helpers.patchVersion + 1;
+
+        setup(() => {
+            taskJson = helpers.createSampleTaskContents(helpers.majorVersionStr, helpers.minorVersionStr, helpers.patchVersionStr);
+            contents = JSON.stringify(taskJson);
+            semverMajorStub = Sinon.stub(semver, 'major').callsFake(() => helpers.majorVersion);
+            semverMinorStub = Sinon.stub(semver, 'minor').callsFake(() => helpers.minorVersion);
+            semverPatchStub = Sinon.stub(semver, 'patch').callsFake(() => bumpedPatch);
+        });
+
+        teardown(() => {
+            taskJson = null;
+        });
+
+        test('Should throw an error when retrieving major throws an error', () => {
+            semverMajorStub.throws(() => new Error(errorMessage));
+            assert.throws(() => utils.setVersionInPlace(contents, defaultOpts, null), errorMessage);
+        });
+
+        test('Should throw an error when retrieving minor throws an error', () => {
+            semverMinorStub.throws(() => new Error(errorMessage));
+            assert.throws(() => utils.setVersionInPlace(contents, defaultOpts, null), errorMessage);
+        });
+
+        test('Should throw an error when retrieving patch throws an error', () => {
+            semverPatchStub.throws(() => new Error(errorMessage));
+            assert.throws(() => utils.setVersionInPlace(contents, defaultOpts, null), errorMessage);
+        });
+
+        test('Should correctly set bumped version properties when no property type is specified', () => {
+            const newTaskJson = utils.setVersionInPlace(contents, defaultOpts, helpers.bumpedVersion);
+            const newTask = JSON.parse(newTaskJson);
+            assert.deepEqual(newTask.version.Major, helpers.majorVersion);
+            assert.deepEqual(newTask.version.Minor, helpers.minorVersion);
+            assert.deepEqual(newTask.version.Patch, bumpedPatch);
+        });
+
+        test('Should correctly set bumped version properties when property type is set to string', () => {
+            const opts = {
+                versionPropertyType: helpers.stringVersionPropertyType
+            };
+            const newTaskJson = utils.setVersionInPlace(contents, opts, helpers.bumpedVersion);
+            const newTask = JSON.parse(newTaskJson);
+            assert.deepEqual(newTask.version.Major, helpers.majorVersionStr);
+            assert.deepEqual(newTask.version.Minor, helpers.minorVersionStr);
+            assert.deepEqual(newTask.version.Patch, bumpedPatch.toString());
+        });
+
+        test('Should preserve arbitrary indentation and whitespace', () => {
+            //The space between "Patch" and the number is NOT preserved.
+            //TODO by the maintainers of json-in-place
+
+            semverMajorStub.callsFake(() => 1);
+            semverMinorStub.callsFake(() => 0);
+            semverPatchStub.callsFake(() => 1);
+            const src = '{"version":\r\n{  "Major":1, "Minor":0, "Patch":0}',
+                dest =  '{"version":\r\n{  "Major":1, "Minor":0, "Patch":1}';
+            const bumped = utils.setVersionInPlace(src, defaultOpts, '1.0.1');
+            assert.deepEqual(bumped, dest);
         });
     });
 });

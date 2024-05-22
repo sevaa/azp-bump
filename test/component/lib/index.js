@@ -217,6 +217,17 @@ suite('index Suite:', () => {
                     done();
                 }).catch(err => done(err));
             });
+
+            test('Should use specified indent when opts has indent set to preserve', done => {
+                const indent = 'preserve';
+                opts.indent = indent;
+                const taskContents = helpers.createBumpedTaskJsonString(helpers.validSampleOneNumericBumpedVersionTaskContents);
+                index.bumpTaskManifestFiles(helpers.singleGlobArgs, opts).then(bumpResult => {
+                    assert.isTrue(fsWriteFileStub.calledWith(helpers.taskOneFilePath, taskContents));
+                    assert.deepEqual(bumpResult.bumpedFiles, helpers.bumpedFileResults);
+                    done();
+                }).catch(err => done(err));
+            });
         });
 
         suite('bump type Suite:', () => {

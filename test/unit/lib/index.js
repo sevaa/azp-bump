@@ -24,6 +24,7 @@ suite('index Suite:', () => {
     const opts = {};
     const failureErrorMessageBase = 'Fatal error occurred while attempting to bump file. Details: ';
     const noDetailsErrorMessage = failureErrorMessageBase + 'unknown';
+    const bumpedContent = JSON.stringify(helpers.validSampleOneNumericBumpedVersionTaskContents);
 
     setup(() => {
         utilsValidateOptionsStub = sinon.stub(utils, 'validateOptions').callsFake(() => helpers.defaultOptions);
@@ -188,6 +189,19 @@ suite('index Suite:', () => {
                         assert.isTrue(jsonStringifyStub.calledWith(helpers.validSampleOneTaskContents, null, helpers.defaultJsonIndent));
                         assert.isTrue(fsWriteFileStub.firstCall.calledWith(helpers.taskOneFilePath, validTaskFileContents));
                         assert.isTrue(fsWriteFileStub.secondCall.calledWith(helpers.taskTwoFilePath, validTaskFileContents));
+                        done();
+                    }).catch(err => done(err));
+                });
+
+                test('Should call file write operation with correct inputs with whitespace preservation', done => {
+                    //Not sure how to stub json-in-place, it's a single function module
+                    const opts = {indent: 'preserve'};
+                    utilsValidateOptionsStub.callsFake(() => opts);
+                    jsonStringifyStub.restore();
+
+                    index.bumpTaskManifestFiles(helpers.singleGlobArgs, opts).then(() => {
+                        assert.isTrue(fsWriteFileStub.firstCall.calledWith(helpers.taskOneFilePath, bumpedContent));
+                        assert.isTrue(fsWriteFileStub.secondCall.calledWith(helpers.taskTwoFilePath, bumpedContent));
                         done();
                     }).catch(err => done(err));
                 });
